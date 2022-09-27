@@ -792,7 +792,7 @@ class Paster {
 
     return imagePath;
   }
-  
+
   /**
    * Generate an path for target file.
    * @param extension extension of target file.
