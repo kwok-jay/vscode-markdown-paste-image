@@ -4,6 +4,7 @@ import { spawn } from "child_process";
 import * as moment from "moment";
 import * as vscode from "vscode";
 import { toMarkdown } from "./toMarkdown";
+const fs = require("fs");
 
 import {
   prepareDirForFile,
@@ -22,12 +23,15 @@ enum ClipboardType {
   Html = 0,
   Text,
   Image,
+  File,
 }
 
 class PasteImageContext {
   targetFile?: vscode.Uri;
   convertToBase64: boolean;
   removeTargetFileAfterConvert: boolean;
+  link?: boolean;
+  showName?: string;
   imgTag?: {
     width: string;
     height: string;
@@ -105,6 +109,9 @@ class Paster {
 
     Logger.log("Clipboard Type:", ctx_type);
     switch (ctx_type) {
+      case ClipboardType.File:
+        Paster.pasteFile();
+        break;
       case ClipboardType.Html:
         const html = await this.pasteTextHtml();
         Logger.log(html);
@@ -322,6 +329,33 @@ class Paster {
     this.renderMarkdownLink(pasteImgContext);
   }
 
+  protected static async saveFile(
+    sourcePath: string,
+    targetPath: string,
+    filename: string
+  ) {
+    let pasteFileContext = this.parsePasteImageContext(targetPath);
+    if (!pasteFileContext || !pasteFileContext.targetFile) return;
+
+    let filePath = pasteFileContext.targetFile.fsPath;
+
+    if (!prepareDirForFile(filePath)) {
+      vscode.window.showErrorMessage("Make folder failed:" + filePath);
+      return;
+    }
+
+    // save file and insert to current edit file
+    fs.copyFile(sourcePath, targetPath, (err) => {
+      if (err) {
+        console.log("Error Found:", err);
+        return;
+      }
+    });
+    pasteFileContext.link = true;
+    pasteFileContext.showName = filename;
+    this.renderMarkdownLink(pasteFileContext);
+  }
+
   private static renderMdFilePath(pasteImgContext: PasteImageContext): string {
     let editor = vscode.window.activeTextEditor;
     if (!editor) return;
@@ -347,6 +381,35 @@ class Paster {
       return `<img src='${imageFilePath}' width='${imgTag.width}' height='${imgTag.height}'/>`;
     }
     return `![](${imageFilePath})  `;
+  }
+
+  private static renderMdDownloadFilePath(
+    pasteImgContext: PasteImageContext
+  ): string {
+    let editor = vscode.window.activeTextEditor;
+    if (!editor) return;
+
+    let fileUri = editor.document.uri;
+    if (!fileUri) return;
+    let basePath = path.dirname(fileUri.fsPath);
+
+    // relative will be add backslash characters so need to replace '\' to '/' here.
+    let imageFilePath = this.encodePath(
+      path.relative(basePath, pasteImgContext.targetFile.fsPath)
+    );
+
+    // parse imageFilePath by rule again for appling lang_rule to image path
+    let parse_result = this.parse_rules(imageFilePath);
+    if (typeof parse_result === "string") {
+      return parse_result;
+    }
+
+    //"../../static/images/vscode-paste/cover.png".replace(new RegExp("(.*/static/)(.*)", ""), "/$2")
+    // let imgTag = pasteImgContext.imgTag;
+    // if (imgTag) {
+    //   return `<a href='${imageFilePath}' />`;
+    // }
+    return `[${pasteImgContext.showName}](${imageFilePath})`;
   }
 
   private static renderMdImageBase64(
@@ -386,6 +449,8 @@ class Paster {
     let renderText: string;
     if (pasteImgContext.convertToBase64) {
       renderText = this.renderMdImageBase64(pasteImgContext);
+    } else if (pasteImgContext.link) {
+      renderText = this.renderMdDownloadFilePath(pasteImgContext);
     } else {
       renderText = this.renderMdFilePath(pasteImgContext);
     }
@@ -620,6 +685,37 @@ class Paster {
   }
 
   /**
+   * Paste file of clipboard to target path and render Markdown link for it.
+   * @returns
+   */
+  private static async pasteFile() {
+    // file name
+    let [clipboardFilePath, targetPath, filename] =
+      await this.genTargetFilePath();
+    if (!clipboardFilePath) return;
+
+    let silence = this.getConfig().silence;
+
+    if (silence) {
+      Paster.saveFile(clipboardFilePath, targetPath, filename);
+    } else {
+      let options: vscode.InputBoxOptions = {
+        prompt:
+          "You can change the filename. The existing file will be overwritten!.",
+        value: targetPath,
+        placeHolder: "(e.g:../test/myimage.zip)",
+        // valueSelection: [
+        //   targetPath.length - path.basename(imagePath).length,
+        //   targetPath.length - ext.length,
+        // ],
+      };
+      vscode.window.showInputBox(options).then((inputVal) => {
+        Paster.saveFile(clipboardFilePath, inputVal, filename);
+      });
+    }
+  }
+
+  /**
    * Generate an path for target image.
    * @param extension extension of target image file.
    * @returns
@@ -696,6 +792,84 @@ class Paster {
 
     return imagePath;
   }
+  
+  /**
+   * Generate an path for target file.
+   * @param extension extension of target file.
+   * @returns
+   */
+  private static async genTargetFilePath() {
+    // get current edit file path
+    let editor = vscode.window.activeTextEditor;
+    if (!editor) return;
+
+    let fileUri = editor.document.uri;
+    if (!fileUri) return;
+    if (fileUri.scheme === "untitled") {
+      vscode.window.showInformationMessage(
+        "Before pasting an image, you need to save the current edited file first."
+      );
+      return;
+    }
+
+    // get selection as file name, need check
+    const selection = editor.selection;
+    const selectText = editor.document.getText(selection);
+
+    if (selectText && !/^[^\\/:\*\?""<>|]{1,120}$/.test(selectText)) {
+      vscode.window.showInformationMessage(
+        "Your selection is not a valid file name!"
+      );
+      return;
+    }
+
+    // get destination path
+    let folderPathFromConfig = this.getConfig().filepath;
+
+    folderPathFromConfig = this.replacePredefinedVars(folderPathFromConfig);
+
+    if (
+      folderPathFromConfig &&
+      folderPathFromConfig.length !== folderPathFromConfig.trim().length
+    ) {
+      vscode.window.showErrorMessage(
+        'The specified path is invalid: "' + folderPathFromConfig + '"'
+      );
+      return;
+    }
+
+    // file name
+    let clipboardFilePath = await this.getClipboardPath();
+    let filename = clipboardFilePath
+      .toString()
+      .split(/[\/\\]/g)
+      .pop();
+    if (selectText) {
+      let extension =
+        filename.split(".").length > 1 ? filename.split(".").slice(-1) : "";
+      filename = selectText + "." + extension;
+    }
+
+    // output path
+    let filePath = fileUri.fsPath;
+    let folderPath = path.dirname(filePath);
+    let targetPath = "";
+    // generate image path
+    if (path.isAbsolute(folderPathFromConfig)) {
+      // important: replace must be done at the end, path.join() will build a path with backward slashes (\)
+      targetPath = path
+        .join(folderPathFromConfig, filename)
+        .replace(/\\/g, "/");
+    } else {
+      // important: replace must be done at the end, path.join() will build a path with backward slashes (\)
+      targetPath = path
+        .join(folderPath, folderPathFromConfig, filename)
+        .replace(/\\/g, "/");
+    }
+    if (!targetPath) return;
+
+    return [clipboardFilePath, targetPath, filename];
+  }
 
   private static getClipboardType(types) {
     if (!types) {
@@ -708,7 +882,9 @@ class Paster {
     switch (platform) {
       case "linux":
         for (const type of types) {
-          switch (type) {
+          switch (
+            type //case "File":KJTODO
+          ) {
             case "image/png":
               detectedTypes.add(ClipboardType.Image);
               break;
@@ -725,7 +901,9 @@ class Paster {
       case "win10":
       case "wsl":
         for (const type of types) {
-          switch (type) {
+          switch (
+            type // case "File" :KJTODO
+          ) {
             case "PNG":
             case "Bitmap":
             case "DeviceIndependentBitmap":
@@ -751,6 +929,8 @@ class Paster {
               detectedTypes.add(ClipboardType.Html);
             case "Image":
               detectedTypes.add(ClipboardType.Image);
+            case "File":
+              detectedTypes.add(ClipboardType.File);
           }
         }
         break;
@@ -759,6 +939,7 @@ class Paster {
     // Set priority based on which to return type
     const priorityOrdering = [
       ClipboardType.Image,
+      ClipboardType.File,
       ClipboardType.Html,
       ClipboardType.Text,
     ];
@@ -770,9 +951,10 @@ class Paster {
 
   private static async getClipboardContentType() {
     const script = {
+      // KJTODO
       linux: "linux_get_clipboard_content_type.sh",
       win32: "win32_get_clipboard_content_type.ps1",
-      darwin: "darwin_get_clipboard_content_type.applescript",
+      darwin: "darwin_get_clipboard_content_type.applescript", // OK
       wsl: "win32_get_clipboard_content_type.ps1",
       win10: "win32_get_clipboard_content_type.ps1",
     };
@@ -870,6 +1052,19 @@ class Paster {
     };
 
     return this.runScript(script, [await wslSafe(imagePath)]);
+  }
+
+  private static async getClipboardPath() {
+    const script = {
+      // KJTODO
+      win32: "win32_get_clipboard_pathg.ps1",
+      darwin: "mac_get_clipboard_path.applescript", // OK
+      linux: "linux_get_clipboard_path.sh",
+      wsl: "win32_get_clipboard_path.ps1",
+      win10: "win32_get_clipboard_path.ps1",
+    };
+
+    return this.runScript(script, []);
   }
 }
 
