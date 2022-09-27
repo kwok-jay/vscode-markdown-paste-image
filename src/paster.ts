@@ -409,7 +409,7 @@ class Paster {
     // if (imgTag) {
     //   return `<a href='${imageFilePath}' />`;
     // }
-    return `[${pasteImgContext.showName}](${imageFilePath})`;
+    return `[${pasteImgContext.showName}](/${imageFilePath})`;
   }
 
   private static renderMdImageBase64(
