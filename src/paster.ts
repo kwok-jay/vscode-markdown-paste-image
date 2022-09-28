@@ -846,10 +846,15 @@ class Paster {
 
     // file name
     let clipboardFilePath = await this.getClipboardPath();
+    clipboardFilePath = decodeURIComponent(clipboardFilePath).replace(
+      /^file:\/\//,
+      ""
+    );
     let filename = clipboardFilePath
       .toString()
       .split(/[\/\\]/g)
       .pop();
+
     if (selectText) {
       let extension =
         filename.split(".").length > 1 ? filename.split(".").slice(-1) : "";
@@ -888,9 +893,12 @@ class Paster {
     switch (platform) {
       case "linux":
         for (const type of types) {
-          switch (
-            type //case "File":KJTODO
-          ) {
+          switch (type) {
+            case "text/uri-list":
+              // x-special/gnome-copied-files
+              // COMPOUND_TEXT
+              detectedTypes.add(ClipboardType.File);
+              break;
             case "image/png":
               detectedTypes.add(ClipboardType.Image);
               break;
@@ -907,9 +915,7 @@ class Paster {
       case "win10":
       case "wsl":
         for (const type of types) {
-          switch (
-            type // case "File" :KJTODO
-          ) {
+          switch (type) {
             case "PNG":
             case "Bitmap":
             case "DeviceIndependentBitmap":
@@ -959,10 +965,9 @@ class Paster {
 
   private static async getClipboardContentType() {
     const script = {
-      // KJTODO
       linux: "linux_get_clipboard_content_type.sh",
       win32: "win32_get_clipboard_content_type.ps1",
-      darwin: "darwin_get_clipboard_content_type.applescript", // OK
+      darwin: "darwin_get_clipboard_content_type.applescript",
       wsl: "win32_get_clipboard_content_type.ps1",
       win10: "win32_get_clipboard_content_type.ps1",
     };
@@ -1064,9 +1069,8 @@ class Paster {
 
   private static async getClipboardPath() {
     const script = {
-      // KJTODO
       win32: "win32_get_clipboard_path.ps1",
-      darwin: "mac_get_clipboard_path.applescript", // OK
+      darwin: "mac_get_clipboard_path.applescript",
       linux: "linux_get_clipboard_path.sh",
       wsl: "win32_get_clipboard_path.ps1",
       win10: "win32_get_clipboard_path.ps1",
