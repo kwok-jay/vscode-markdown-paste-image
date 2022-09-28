@@ -1,8 +1,8 @@
 {
-  "name": "vscode-markdown-paste-image",
-  "displayName": "Markdown Paste",
+  "name": "vscode-markdown-paste",
+  "displayName": "Markdown Paste (KJ)",
   "description": "A smartly paste for markdown.",
-  "version": "0.19.1",
+  "version": "0.19.2",
   "publisher": "telesoho",
   "author": {
     "name": "telesoho",
