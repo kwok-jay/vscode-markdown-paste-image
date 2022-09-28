@@ -1058,7 +1058,7 @@ class Paster {
 
     const script = {
       win32: "win32_save_clipboard_png.ps1",
-      darwin: "mac.applescript",
+      darwin: "darwin_save_clipboard_png.applescript",
       linux: "linux_save_clipboard_png.sh",
       wsl: "win32_save_clipboard_png.ps1",
       win10: "win32_save_clipboard_png.ps1",
@@ -1070,7 +1070,7 @@ class Paster {
   private static async getClipboardPath() {
     const script = {
       win32: "win32_get_clipboard_path.ps1",
-      darwin: "mac_get_clipboard_path.applescript",
+      darwin: "darwin_get_clipboard_path.applescript",
       linux: "linux_get_clipboard_path.sh",
       wsl: "win32_get_clipboard_path.ps1",
       win10: "win32_get_clipboard_path.ps1",
