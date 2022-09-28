@@ -693,7 +693,12 @@ class Paster {
     let [clipboardFilePath, targetPath, filename] =
       await this.genTargetFilePath();
     if (!clipboardFilePath) return;
-    if (!fs.statSync(clipboardFilePath).isFile()) return;
+    try {
+      if (!fs.statSync(clipboardFilePath).isFile()) return;
+    } catch (e) {
+      Logger.log("not file or path not exist");
+      return;
+    }
 
     let silence = this.getConfig().silence;
 
