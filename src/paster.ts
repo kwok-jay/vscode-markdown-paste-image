@@ -693,6 +693,7 @@ class Paster {
     let [clipboardFilePath, targetPath, filename] =
       await this.genTargetFilePath();
     if (!clipboardFilePath) return;
+    if (!fs.statSync(clipboardFilePath).isFile()) return;
 
     let silence = this.getConfig().silence;
 
@@ -909,6 +910,8 @@ class Paster {
             case "DeviceIndependentBitmap":
               detectedTypes.add(ClipboardType.Image);
               break;
+            case "Shell IDList Array":
+              detectedTypes.add(ClipboardType.File);
             case "HTML Format":
               detectedTypes.add(ClipboardType.Html);
               break;
@@ -1057,7 +1060,7 @@ class Paster {
   private static async getClipboardPath() {
     const script = {
       // KJTODO
-      win32: "win32_get_clipboard_pathg.ps1",
+      win32: "win32_get_clipboard_path.ps1",
       darwin: "mac_get_clipboard_path.applescript", // OK
       linux: "linux_get_clipboard_path.sh",
       wsl: "win32_get_clipboard_path.ps1",
