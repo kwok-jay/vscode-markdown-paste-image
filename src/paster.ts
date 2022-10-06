@@ -143,6 +143,57 @@ class Paster {
   }
 
   /**
+   * Paste file remove
+   */
+  public static async pasteRemove() {
+    let editor = vscode.window.activeTextEditor;
+    if (!editor) return;
+    const selection = editor.selection;
+    if (editor.selection.isEmpty) return;
+
+    const selectText = editor.document.getText(selection);
+    const tempMatch = selectText.match(/\]\([/]?(.*)\)/);
+    if (!tempMatch || !tempMatch.length) {
+      vscode.window.showErrorMessage("Not found filepath!");
+      return;
+    }
+    const filepath = tempMatch && tempMatch.pop();
+
+    let fileUri = editor.document.uri;
+    if (!fileUri) return;
+    let basePath = path.dirname(fileUri.fsPath);
+
+    let targetFile = path.join(basePath, filepath).replace(/\\/g, "/");
+    if (targetFile && targetFile.length !== targetFile.trim().length) {
+      vscode.window.showErrorMessage(
+        'The specified path is invalid: "' + targetFile + '"'
+      );
+      return;
+    }
+
+    Logger.log("Remove File:", targetFile);
+
+    let options: vscode.InputBoxOptions = {
+      prompt: `Confirm to remove this file: [${targetFile}] ?`,
+      value: "y",
+    };
+    vscode.window.showInputBox(options).then((inputVal) => {
+      if (inputVal === "y") {
+        editor.edit((edit) => {
+          edit.replace(editor.selection, "");
+        });
+
+        fs.rm(targetFile, (err) => {
+          err &&
+            vscode.window.showErrorMessage(
+              "Remove failed:" + targetFile + " " + err
+            );
+        });
+      }
+    });
+  }
+
+  /**
    * Download url content in clipboard
    */
   public static async pasteDownload() {

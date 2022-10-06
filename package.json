@@ -2,7 +2,7 @@
   "name": "vscode-markdown-paste",
   "displayName": "Markdown Paste (KJ)",
   "description": "A smartly paste for markdown.",
-  "version": "0.19.2",
+  "version": "0.19.3",
   "publisher": "telesoho",
   "author": {
     "name": "telesoho",
@@ -41,6 +41,7 @@
     "onCommand:telesoho.MarkdownPaste",
     "onCommand:telesoho.MarkdownRuby",
     "onCommand:telesoho.insertMathSymbol",
+    "onCommand:telesoho.MarkdownPasteRemove",
     "onCommand:telesoho.MarkdownPasteCode"
   ],
   "main": "./out/extension",
@@ -199,6 +200,10 @@
         "title": "Insert latex math symbol"
       },
       {
+        "command": "telesoho.MarkdownPasteRemove",
+        "title": "Markdown Paste Remove"
+      },
+      {
         "command": "telesoho.MarkdownPasteCode",
         "title": "Markdown Paste Code"
       }
@@ -207,6 +212,11 @@
       "editor/context": [
         {
           "command": "telesoho.MarkdownPaste",
+          "when": "editorLangId == markdown",
+          "group": "markdown"
+        },
+        {
+          "command": "telesoho.MarkdownPasteRemove",
           "when": "editorLangId == markdown",
           "group": "markdown"
         },

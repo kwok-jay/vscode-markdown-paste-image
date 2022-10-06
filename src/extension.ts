@@ -69,6 +69,11 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
   context.subscriptions.push(
+    vscode.commands.registerCommand("telesoho.MarkdownPasteRemove", () => {
+      Paster.pasteRemove();
+    })
+  );
+  context.subscriptions.push(
     vscode.commands.registerCommand("telesoho.MarkdownPasteCode", () => {
       Paster.pasteCode();
     })
