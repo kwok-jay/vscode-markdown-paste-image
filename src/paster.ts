@@ -158,7 +158,7 @@ class Paster {
       return;
     }
     const filepath = tempMatch && tempMatch.pop();
-
+    // filepath = filepath && decodeURI(filepath);
     let fileUri = editor.document.uri;
     if (!fileUri) return;
     let basePath = path.dirname(fileUri.fsPath);
@@ -175,10 +175,10 @@ class Paster {
 
     let options: vscode.InputBoxOptions = {
       prompt: `Confirm to remove this file: [${targetFile}] ?`,
-      value: "y",
+      value: `${targetFile}`,
     };
     vscode.window.showInputBox(options).then((inputVal) => {
-      if (inputVal === "y") {
+      if (fs.statSync(inputVal).isFile()) {
         editor.edit((edit) => {
           edit.replace(editor.selection, "");
         });
@@ -445,15 +445,16 @@ class Paster {
     let basePath = path.dirname(fileUri.fsPath);
 
     // relative will be add backslash characters so need to replace '\' to '/' here.
-    let imageFilePath = this.encodePath(
-      path.relative(basePath, pasteImgContext.targetFile.fsPath)
+    let imageFilePath = path.relative(
+      basePath,
+      pasteImgContext.targetFile.fsPath
     );
 
     // parse imageFilePath by rule again for appling lang_rule to image path
-    let parse_result = this.parse_rules(imageFilePath);
-    if (typeof parse_result === "string") {
-      return parse_result;
-    }
+    // let parse_result = this.parse_rules(imageFilePath);
+    // if (typeof parse_result === "string") {
+    //   return parse_result;
+    // }
 
     //"../../static/images/vscode-paste/cover.png".replace(new RegExp("(.*/static/)(.*)", ""), "/$2")
     // let imgTag = pasteImgContext.imgTag;
